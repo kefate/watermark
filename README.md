@@ -31,28 +31,28 @@
 | 字号 | 10–100 px 连续可调 |
 | 间隔 | 50–500 px 连续可调，控制水印平铺密度 |
 | 拖拽上传 | 支持点击选择或拖拽上传，支持多文件 |
-| 缩略图预览 | 预览区使用压缩缩略图加速渲染 |
-| 灯箱查看 | 点击预览卡片弹出全分辨率大图 |
-| 批量下载 | 逐张触发浏览器下载，自动追加 `-watermarked` 后缀 |
+| 缩略图预览 | 预览区使用压缩缩略图（400px）加速渲染 |
+| 灯箱查看 | 点击预览卡片弹出压缩预览大图（1200px），即时打开无卡顿 |
+| 批量下载 | 异步 `toBlob` 编码 + 下载进度条，逐张下载并追加 `-watermarked` 后缀 |
 
 ### 架构设计
 
-整个项目由**单一 HTML 文件** (`watermark.html`) 构成，零外部依赖，结构清晰地分为三层：
+整个项目由**单一 HTML 文件** (`index.html`) 构成，零外部依赖，结构清晰地分为三层：
 
 ```
-watermark.html
-├── <style>   — CSS 设计系统 (Design Tokens + 组件样式 + 响应式断点)
-├── <body>    — 语义化 HTML 结构 (隐私横幅 / 设置面板 / 上传区 / 预览区 / 灯箱)
+index.html
+├── <head>    — SVG 内联 Favicon + CSS 设计系统 (Design Tokens + 组件样式 + 进度条 + 响应式断点)
+├── <body>    — 语义化 HTML 结构 (隐私横幅 / 设置面板 / 上传区 / 预览区 / 灯箱 / GitHub 链接)
 └── <script>  — 纯 JavaScript 逻辑
      ├── I18N          — 国际化资源对象 (zh / en)
      ├── DOM Cache     — 一次性缓存所有 DOM 引用，避免重复查询
      ├── setLang()     — 语言切换：更新所有文案节点 + 自动适配水印默认文字
      ├── saveSettings / loadSettings — localStorage 读写配置持久化
      ├── stampWatermark()  — Canvas 水印合成核心算法
-     ├── makeThumbnail()   — 缩小 Canvas 生成 JPEG 缩略图
-     ├── generatePreviews() — 批量生成预览卡片，存储 Canvas 对象
-     ├── downloadAll()     — 下载时从 Canvas 实时编码为目标格式
-     └── Event Wiring      — 滑块 / 颜色 / 拖拽 / 灯箱等事件绑定
+     ├── makeThumbnail()   — 缩小 Canvas 生成 JPEG 缩略图 / 灯箱压缩预览图
+     ├── generatePreviews() — 批量生成预览卡片 + 预缓存灯箱预览图
+     ├── downloadAll()     — 异步 toBlob 编码 + 进度 Toast + 内存自动释放
+     └── Event Wiring      — 滑块 / 颜色 / 拖拽 / 灯箱滚动锁 等事件绑定
 ```
 
 ### 水印算法
@@ -77,9 +77,11 @@ watermark.html
 
 ### 导出编码
 
-- **PNG** — 调用 `canvas.toDataURL('image/png')`，无损编码。
-- **JPG** — 调用 `canvas.toDataURL('image/jpeg', 0.85)`，质量系数 0.85，将文件体积大幅压缩。
-- 编码在**下载时实时生成**（非预览时缓存），确保始终使用用户最新选择的格式。
+- **PNG** — 调用 `canvas.toBlob(callback, 'image/png')`，无损编码。
+- **JPG** — 调用 `canvas.toBlob(callback, 'image/jpeg', 0.85)`，质量系数 0.85，将文件体积大幅压缩。
+- 使用异步 `toBlob()` 代替同步 `toDataURL()`，**不阻塞主线程**，移动端下载体验流畅。
+- 通过 `URL.createObjectURL()` 创建临时链接触发下载，下载后自动释放内存。
+- 下载过程中显示实时**进度 Toast**（支持中英文），含动画进度条和计数器。
 
 ### 隐私保障
 
@@ -89,12 +91,12 @@ watermark.html
 
 ### 快速使用
 
-1. 使用浏览器打开 `watermark.html`（可选：断开网络以验证离线可用性）
+1. 使用浏览器打开 `index.html`（可选：断开网络以验证离线可用性）
 2. 设置水印文字、颜色、透明度、字号、间隔
 3. 上传一张或多张图片
 4. 选择导出格式（PNG / JPG）
-5. 点击"预览效果"查看结果，点击预览卡片可放大查看
-6. 点击"下载全部"保存加水印后的图片
+5. 点击"预览效果"查看结果，点击预览卡片可放大查看（压缩预览，即时打开）
+6. 点击"下载全部"保存加水印后的图片（显示下载进度）
 
 ---
 
@@ -121,28 +123,28 @@ A privacy-first batch watermark tool designed for **sensitive documents** such a
 | Font size | 10–100 px range |
 | Spacing | 50–500 px range, controls tiling density |
 | Drag & drop upload | Click or drag to upload; multi-file supported |
-| Thumbnail preview | Preview grid uses compressed thumbnails for fast rendering |
-| Lightbox viewer | Click a preview card to view the full-resolution watermarked image |
-| Batch download | Downloads triggered one by one with auto-appended `-watermarked` suffix |
+| Thumbnail preview | Preview grid uses compressed thumbnails (400px) for fast rendering |
+| Lightbox viewer | Click a preview card to view a compressed preview (1200px), opens instantly |
+| Batch download | Async `toBlob` encoding + progress toast, downloads one by one with `-watermarked` suffix |
 
 ### Architecture
 
-The entire project consists of a **single HTML file** (`watermark.html`) with zero external dependencies, clearly separated into three layers:
+The entire project consists of a **single HTML file** (`index.html`) with zero external dependencies, clearly separated into three layers:
 
 ```
-watermark.html
-├── <style>   — CSS design system (tokens + component styles + responsive breakpoints)
-├── <body>    — Semantic HTML (privacy banner / settings panel / upload zone / preview grid / lightbox)
+index.html
+├── <head>    — Inline SVG favicon + CSS design system (tokens + component styles + progress toast + responsive breakpoints)
+├── <body>    — Semantic HTML (privacy banner / settings panel / upload zone / preview grid / lightbox / GitHub link)
 └── <script>  — Pure JavaScript logic
      ├── I18N              — Locale resource objects (zh / en)
      ├── DOM Cache         — One-time cached DOM references to avoid repeated queries
      ├── setLang()         — Language switch: updates all text nodes + adapts default watermark text
      ├── saveSettings / loadSettings — localStorage read/write for persistent configuration
      ├── stampWatermark()  — Core Canvas watermark compositing algorithm
-     ├── makeThumbnail()   — Downscales Canvas to a JPEG thumbnail
-     ├── generatePreviews() — Batch-generates preview cards; stores Canvas objects
-     ├── downloadAll()     — Encodes from Canvas to selected format at download time
-     └── Event Wiring      — Slider / colour / drag-drop / lightbox event bindings
+     ├── makeThumbnail()   — Downscales Canvas to JPEG thumbnail / compressed lightbox preview
+     ├── generatePreviews() — Batch-generates preview cards + pre-caches lightbox previews
+     ├── downloadAll()     — Async toBlob encoding + progress toast + auto memory release
+     └── Event Wiring      — Slider / colour / drag-drop / lightbox scroll-lock event bindings
 ```
 
 ### Watermark Algorithm
@@ -167,9 +169,11 @@ for r in [-rows, rows), c in [-cols, cols):
 
 ### Export Encoding
 
-- **PNG** — `canvas.toDataURL('image/png')`, lossless encoding.
-- **JPG** — `canvas.toDataURL('image/jpeg', 0.85)`, quality factor 0.85, significantly reducing file size.
-- Encoding is performed **on-the-fly at download time** (not cached at preview time), ensuring the user's latest format choice is always respected.
+- **PNG** — `canvas.toBlob(callback, 'image/png')`, lossless encoding.
+- **JPG** — `canvas.toBlob(callback, 'image/jpeg', 0.85)`, quality factor 0.85, significantly reducing file size.
+- Uses async `toBlob()` instead of sync `toDataURL()`, **keeping the main thread unblocked** for a smooth mobile experience.
+- Downloads via `URL.createObjectURL()` for memory-efficient temporary links, automatically revoked after use.
+- A real-time **progress toast** (bilingual) with animated progress bar and counter is shown during batch downloads.
 
 ### Privacy Guarantee
 
@@ -179,12 +183,12 @@ for r in [-rows, rows), c in [-cols, cols):
 
 ### Quick Start
 
-1. Open `watermark.html` in any modern browser (optionally disconnect from the network to verify offline capability)
+1. Open `index.html` in any modern browser (optionally disconnect from the network to verify offline capability)
 2. Configure watermark text, colour, opacity, font size, and spacing
 3. Upload one or more images
 4. Select export format (PNG / JPG)
-5. Click "Preview" to review results; click any preview card to view full-size
-6. Click "Download All" to save the watermarked images
+5. Click "Preview" to review results; click any preview card for a compressed full-view (opens instantly)
+6. Click "Download All" to save the watermarked images (progress bar shown)
 
 ---
 
