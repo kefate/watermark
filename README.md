@@ -194,4 +194,6 @@ for r in [-rows, rows), c in [-cols, cols):
 
 ## License
 
-[GPL-3.0](LICENSE)
+Copyright (C) 2026 kefate
+
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
