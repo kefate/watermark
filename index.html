@@ -382,6 +382,66 @@
             cursor: not-allowed;
         }
 
+        .recommended-settings-panel {
+            margin-bottom: 1.25rem;
+            padding: 1rem;
+            border: 1px solid rgba(99, 102, 241, .16);
+            border-radius: 10px;
+            background: var(--c-primary-light);
+        }
+
+        .recommended-settings-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            margin-bottom: 1rem;
+        }
+
+        .recommended-settings-head>span {
+            color: var(--c-text);
+            font-size: .82rem;
+            font-weight: 600;
+        }
+
+        .recommended-settings-panel .field:last-child {
+            margin-bottom: 0;
+        }
+
+        .btn-recommend {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .4rem .7rem;
+            border: 1px solid rgba(99, 102, 241, .25);
+            border-radius: 999px;
+            background: var(--c-surface);
+            color: var(--c-primary);
+            font-size: .8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(99, 102, 241, .08);
+        }
+
+        .btn-recommend::before {
+            content: "✦";
+            font-size: .75rem;
+        }
+
+        .btn-recommend:hover:not(:disabled) {
+            border-color: var(--c-primary);
+            background: var(--c-surface);
+            box-shadow: 0 3px 8px rgba(99, 102, 241, .14);
+            transform: translateY(-1px);
+        }
+
+        .btn-recommend:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
         /* ========== Preview Grid ========== */
         .preview-section {
             margin-top: 2rem;
@@ -595,6 +655,11 @@
                 padding: 1.25rem 1rem;
             }
 
+            .recommended-settings-head {
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+
             .privacy-banner {
                 flex-direction: column;
                 text-align: center;
@@ -672,27 +737,34 @@
                 </div>
             </div>
 
-            <div class="field">
-                <label class="field-label" id="lblOpacity">透明度</label>
-                <div class="slider-row">
-                    <input type="range" class="range-track" id="sliderOpacity" min="0" max="100" value="30">
-                    <span class="slider-val" id="valOpacity">30%</span>
+            <div class="recommended-settings-panel">
+                <div class="recommended-settings-head">
+                    <span id="lblDisplaySettings">显示参数</span>
+                    <button class="btn-recommend" id="btnRecommend" type="button" disabled>使用推荐参数</button>
                 </div>
-            </div>
 
-            <div class="field">
-                <label class="field-label" id="lblFontSize">字号</label>
-                <div class="slider-row">
-                    <input type="range" class="range-track" id="sliderFontSize" min="10" max="100" value="20">
-                    <span class="slider-val" id="valFontSize">20px</span>
+                <div class="field">
+                    <label class="field-label" id="lblOpacity">透明度</label>
+                    <div class="slider-row">
+                        <input type="range" class="range-track" id="sliderOpacity" min="0" max="100" value="30">
+                        <span class="slider-val" id="valOpacity">30%</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="field">
-                <label class="field-label" id="lblSpacing">间隔</label>
-                <div class="slider-row">
-                    <input type="range" class="range-track" id="sliderSpacing" min="50" max="500" value="170">
-                    <span class="slider-val" id="valSpacing">170px</span>
+                <div class="field">
+                    <label class="field-label" id="lblFontSize">字号</label>
+                    <div class="slider-row">
+                        <input type="range" class="range-track" id="sliderFontSize" min="10" max="100" value="20">
+                        <span class="slider-val" id="valFontSize">20px</span>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label" id="lblSpacing">间隔</label>
+                    <div class="slider-row">
+                        <input type="range" class="range-track" id="sliderSpacing" min="50" max="800" value="170">
+                        <span class="slider-val" id="valSpacing">170px</span>
+                    </div>
                 </div>
             </div>
 
@@ -755,6 +827,7 @@
                 lblText: "水印文字",
                 defaultText: "仅供办理业务使用",
                 lblColor: "水印颜色",
+                lblDisplaySettings: "显示参数",
                 lblOpacity: "透明度",
                 lblFontSize: "字号",
                 lblSpacing: "间隔",
@@ -762,6 +835,7 @@
                 lblPng: "无损 PNG",
                 lblJpg: "压缩 JPG",
                 lblUpload: "点击或拖拽图片上传（支持多选）",
+                btnRecommend: "使用推荐参数",
                 btnPreview: "预览效果",
                 btnDownload: "下载全部",
                 lblPreview: "预览结果",
@@ -782,6 +856,7 @@
                 lblText: "Watermark Text",
                 defaultText: "For official use only",
                 lblColor: "Color",
+                lblDisplaySettings: "Display Settings",
                 lblOpacity: "Opacity",
                 lblFontSize: "Font Size",
                 lblSpacing: "Spacing",
@@ -789,6 +864,7 @@
                 lblPng: "Lossless PNG",
                 lblJpg: "Compressed JPG",
                 lblUpload: "Click or drag images to upload (multiple allowed)",
+                btnRecommend: "Use Recommended Settings",
                 btnPreview: "Preview",
                 btnDownload: "Download All",
                 lblPreview: "Preview Results",
@@ -818,6 +894,7 @@
             inputText: $('inputText'),
             lblColor: $('lblColor'),
             inputColor: $('inputColor'),
+            lblDisplaySettings: $('lblDisplaySettings'),
             lblOpacity: $('lblOpacity'),
             sliderOpacity: $('sliderOpacity'),
             valOpacity: $('valOpacity'),
@@ -834,6 +911,7 @@
             lblUpload: $('lblUpload'),
             dropZone: $('dropZone'),
             fileInput: $('fileInput'),
+            btnRecommend: $('btnRecommend'),
             btnPreview: $('btnPreview'),
             btnDownload: $('btnDownload'),
             lblPreview: $('lblPreview'),
@@ -865,6 +943,7 @@
             dom.lblText.textContent = t.lblText;
             dom.inputText.placeholder = t.defaultText;
             dom.lblColor.textContent = t.lblColor;
+            dom.lblDisplaySettings.textContent = t.lblDisplaySettings;
             dom.lblOpacity.textContent = t.lblOpacity;
             dom.lblFontSize.textContent = t.lblFontSize;
             dom.lblSpacing.textContent = t.lblSpacing;
@@ -872,6 +951,7 @@
             dom.lblPng.textContent = t.lblPng;
             dom.lblJpg.textContent = t.lblJpg;
             dom.lblUpload.textContent = t.lblUpload;
+            dom.btnRecommend.textContent = t.btnRecommend;
             dom.btnPreview.textContent = t.btnPreview;
             dom.btnDownload.textContent = t.btnDownload;
             dom.lblPreview.textContent = t.lblPreview;
@@ -944,6 +1024,71 @@
         }
 
         /* ======================================= *
+         *  Recommended Settings
+         * ======================================= */
+        function calculateRecommendedSettings(width, height, text) {
+            const cleanText = text.trim();
+            if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 || cleanText === '') {
+                return null;
+            }
+
+            const measurementSize = 100;
+            const measureCanvas = document.createElement('canvas');
+            const measureContext = measureCanvas.getContext('2d');
+            measureContext.font = measurementSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            const textWidthRatio = measureContext.measureText(cleanText).width / measurementSize;
+            const shortSide = Math.min(width, height);
+            const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+            const baseFontSize = shortSide * 0.05;
+            const maxFontForImage = shortSide * 0.72 * Math.SQRT2 / (textWidthRatio + 1.2);
+            const maxFontForSpacing = 800 / Math.max(4.2, textWidthRatio * 0.3);
+            const fontSize = Math.floor(clamp(
+                Math.min(baseFontSize, maxFontForImage, maxFontForSpacing),
+                10,
+                100
+            ));
+
+            const textWidth = textWidthRatio * fontSize;
+            const textHeight = fontSize * 1.2;
+            const fontSpacing = fontSize * 4.2;
+            const textSpacing = textWidth * 0.3;
+            const densitySpacing = shortSide * 0.12;
+            const spacing = Math.round(clamp(Math.max(fontSpacing, textSpacing, densitySpacing), 50, 800));
+            const density = textWidth * textHeight / (1.5 * spacing * spacing);
+            const opacity = Math.round(clamp(30 - density * 70, 18, 30));
+
+            return { opacity, fontSize, spacing };
+        }
+
+        function applyRecommendedSettings() {
+            const t = I18N[currentLang];
+            if (loadedImages.length === 0) {
+                alert(t.alertNoImg);
+                return;
+            }
+
+            const text = dom.inputText.value.trim();
+            if (text === '') {
+                alert(t.alertNoTxt);
+                return;
+            }
+
+            const firstImage = loadedImages[0].image;
+            const settings = calculateRecommendedSettings(firstImage.width, firstImage.height, text);
+            if (!settings) {
+                alert(t.alertNoImg);
+                return;
+            }
+
+            dom.sliderOpacity.value = settings.opacity;
+            dom.sliderFontSize.value = settings.fontSize;
+            dom.sliderSpacing.value = settings.spacing;
+            syncSliders();
+            saveSettings();
+        }
+
+        /* ======================================= *
          *  Watermark Compositing (Canvas)
          * ======================================= */
         function stampWatermark(img) {
@@ -1006,6 +1151,7 @@
             if (!files || files.length === 0) return;
             loadedImages = [];
             resultEntries = [];
+            dom.btnRecommend.disabled = true;
             dom.btnDownload.disabled = true;
             dom.previewSection.classList.add('hidden');
 
@@ -1013,13 +1159,16 @@
             if (valid.length === 0) return;
 
             let done = 0;
-            valid.forEach(f => {
+            valid.forEach((f, index) => {
                 const reader = new FileReader();
                 reader.onload = e => {
                     const img = new Image();
                     img.onload = () => {
-                        loadedImages.push({ file: f, image: img, name: f.name });
-                        if (++done === valid.length) generatePreviews();
+                        loadedImages[index] = { file: f, image: img, name: f.name };
+                        if (++done === valid.length) {
+                            dom.btnRecommend.disabled = false;
+                            generatePreviews();
+                        }
                     };
                     img.src = e.target.result;
                 };
@@ -1077,6 +1226,7 @@
                 resultEntries = [];
                 dom.previewGrid.innerHTML = '';
                 dom.previewSection.classList.add('hidden');
+                dom.btnRecommend.disabled = true;
                 dom.btnDownload.disabled = true;
                 closeLightbox();
                 return;
@@ -1221,6 +1371,7 @@
         dom.fileInput.addEventListener('change', e => { if (e.target.files) ingestFiles(e.target.files); e.target.value = null; });
 
         dom.btnPreview.addEventListener('click', generatePreviews);
+        dom.btnRecommend.addEventListener('click', applyRecommendedSettings);
         dom.btnDownload.addEventListener('click', downloadAll);
 
         /* ======================================= *

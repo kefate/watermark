@@ -18,6 +18,7 @@
 - ✅ **批量处理** — 一次上传多张图片，统一添加水印并批量下载
 - ✅ **双语界面** — 中文 / English 一键切换，水印默认文字随语言自动适配
 - ✅ **设置缓存** — 水印参数通过 `localStorage` 持久化，下次打开自动恢复
+- ✅ **智能推荐** — 根据首张图片尺寸和当前水印文字自动推荐透明度、字号与间隔
 - ✅ **双格式导出** — 无损 PNG 或压缩 JPG，下载时实时按所选格式编码
 - ✅ **响应式设计** — 桌面端与移动端均有良好体验
 
@@ -29,7 +30,8 @@
 | 水印颜色 | RGB 取色器 + 5 种常用快捷色（黑、白、红、蓝、灰） |
 | 透明度 | 0–100% 连续可调，拖动时实时显示当前值 |
 | 字号 | 10–100 px 连续可调 |
-| 间隔 | 50–500 px 连续可调，控制水印平铺密度 |
+| 间隔 | 50–800 px 连续可调，控制水印平铺密度 |
+| 推荐参数 | 使用首张图片尺寸和当前文字实测宽度，推荐透明度、字号与间隔，不修改颜色 |
 | 拖拽上传 | 支持点击选择或拖拽上传，支持多文件 |
 | 缩略图预览 | 预览区使用压缩缩略图（400px）加速渲染 |
 | 灯箱查看 | 点击预览卡片弹出压缩预览大图（1200px），即时打开无卡顿 |
@@ -48,12 +50,38 @@ index.html
      ├── DOM Cache     — 一次性缓存所有 DOM 引用，避免重复查询
      ├── setLang()     — 语言切换：更新所有文案节点 + 自动适配水印默认文字
      ├── saveSettings / loadSettings — localStorage 读写配置持久化
+     ├── calculateRecommendedSettings() — 根据图片尺寸和实测文字宽度计算推荐参数
+     ├── applyRecommendedSettings() — 应用并保存推荐值，不修改颜色或自动刷新预览
      ├── stampWatermark()  — Canvas 水印合成核心算法
      ├── makeThumbnail()   — 缩小 Canvas 生成 JPEG 缩略图 / 灯箱压缩预览图
      ├── generatePreviews() — 批量生成预览卡片 + 预缓存灯箱预览图
      ├── downloadAll()     — 异步 toBlob 编码 + 进度 Toast + 内存自动释放
      └── Event Wiring      — 滑块 / 颜色 / 拖拽 / 灯箱滚动锁 等事件绑定
 ```
+
+### 推荐参数算法
+
+推荐参数仅在用户点击“使用推荐参数”后生效。按钮位于透明度、字号和间隔组成的显示参数面板内。上传图片不会覆盖缓存参数；多图场景始终使用文件选择顺序中的第一张图片。按钮只更新透明度、字号和间隔，不修改颜色、导出格式，也不会自动刷新预览。
+
+算法使用 Canvas `measureText()` 实测当前文字在 100px 字号下的宽度比例：
+
+```text
+短边 S         = min(width, height)
+文字宽高比 U   = measureText(text, 100px).width / 100
+基础字号       = S × 5%
+图片约束字号   = S × 72% × √2 / (U + 1.2)
+间隔约束字号   = 800 / max(4.2, U × 30%)
+最终字号       = min(基础字号, 图片约束字号, 间隔约束字号)，限制为 10–100px
+
+字号间隔       = 字号 × 4.2
+文字间隔       = 文字宽度 × 30%
+密度间隔       = S × 12%
+间隔           = max(字号间隔, 文字间隔, 密度间隔)，限制为 50–800px
+密度           = 文字宽度 × 文字高度 / (1.5 × 间隔²)
+透明度         = 30 - 密度 × 70，限制为 18%–30%
+```
+
+长文字会优先缩小字号并增大间隔，避免相邻水印重叠。极端情况下使用滑块边界值兜底。
 
 ### 水印算法
 
@@ -92,11 +120,11 @@ index.html
 ### 快速使用
 
 1. 使用浏览器打开 `index.html`（可选：断开网络以验证离线可用性）
-2. 设置水印文字、颜色、透明度、字号、间隔
-3. 上传一张或多张图片
-4. 选择导出格式（PNG / JPG）
-5. 点击"预览效果"查看结果，点击预览卡片可放大查看（压缩预览，即时打开）
-6. 点击"下载全部"保存加水印后的图片（显示下载进度）
+2. 设置水印文字和颜色
+3. 上传一张或多张图片，可选点击“使用推荐参数”
+4. 按需调整透明度、字号、间隔并选择导出格式（PNG / JPG）
+5. 点击“预览效果”查看结果，点击预览卡片可放大查看（压缩预览，即时打开）
+6. 点击“下载全部”保存加水印后的图片（显示下载进度）
 
 ---
 
@@ -110,6 +138,7 @@ A privacy-first batch watermark tool designed for **sensitive documents** such a
 - ✅ **Batch processing** — Upload multiple images at once, apply watermarks and download in batch
 - ✅ **Bilingual UI** — Chinese / English toggle with auto-adapted default watermark text
 - ✅ **Persistent settings** — Watermark parameters cached via `localStorage`, restored on revisit
+- ✅ **Smart recommendations** — Recommends opacity, font size, and spacing from the first image and current text
 - ✅ **Dual export formats** — Lossless PNG or compressed JPG, encoded on-the-fly at download time
 - ✅ **Responsive design** — Optimised for both desktop and mobile browsers
 
@@ -121,7 +150,8 @@ A privacy-first batch watermark tool designed for **sensitive documents** such a
 | Watermark color | Native RGB picker + 5 quick-select presets (black, white, red, blue, grey) |
 | Opacity | Continuously adjustable 0–100%, current value shown in real time |
 | Font size | 10–100 px range |
-| Spacing | 50–500 px range, controls tiling density |
+| Spacing | 50–800 px range, controls tiling density |
+| Recommended settings | Uses the first image dimensions and measured text width without changing the selected color |
 | Drag & drop upload | Click or drag to upload; multi-file supported |
 | Thumbnail preview | Preview grid uses compressed thumbnails (400px) for fast rendering |
 | Lightbox viewer | Click a preview card to view a compressed preview (1200px), opens instantly |
@@ -140,12 +170,38 @@ index.html
      ├── DOM Cache         — One-time cached DOM references to avoid repeated queries
      ├── setLang()         — Language switch: updates all text nodes + adapts default watermark text
      ├── saveSettings / loadSettings — localStorage read/write for persistent configuration
+     ├── calculateRecommendedSettings() — Calculates recommendations from image dimensions and measured text width
+     ├── applyRecommendedSettings() — Applies and saves slider values without changing color or refreshing previews
      ├── stampWatermark()  — Core Canvas watermark compositing algorithm
      ├── makeThumbnail()   — Downscales Canvas to JPEG thumbnail / compressed lightbox preview
      ├── generatePreviews() — Batch-generates preview cards + pre-caches lightbox previews
      ├── downloadAll()     — Async toBlob encoding + progress toast + auto memory release
      └── Event Wiring      — Slider / colour / drag-drop / lightbox scroll-lock event bindings
 ```
+
+### Recommended Settings Algorithm
+
+Recommendations are applied only when the user clicks “Use Recommended Settings”. The button sits inside the display settings panel with opacity, font size, and spacing. Uploading images does not overwrite cached settings. For multiple images, the first file in selection order is always used. The button updates only opacity, font size, and spacing; it does not change color, export format, or refresh previews automatically.
+
+The algorithm uses Canvas `measureText()` to measure the current text at 100px:
+
+```text
+short side S        = min(width, height)
+text width ratio U  = measureText(text, 100px).width / 100
+base font size      = S × 5%
+image font limit   = S × 72% × √2 / (U + 1.2)
+spacing font limit = 800 / max(4.2, U × 30%)
+font size           = min(base, image limit, spacing limit), clamped to 10–100px
+
+font spacing        = font size × 4.2
+text spacing        = text width × 30%
+density spacing     = S × 12%
+spacing             = max(font spacing, text spacing, density spacing), clamped to 50–800px
+density             = text width × text height / (1.5 × spacing²)
+opacity             = 30 - density × 70, clamped to 18%–30%
+```
+
+Long text reduces the font size and increases spacing to avoid overlap. Extreme inputs fall back to the slider boundaries.
 
 ### Watermark Algorithm
 
@@ -184,11 +240,11 @@ for r in [-rows, rows), c in [-cols, cols):
 ### Quick Start
 
 1. Open `index.html` in any modern browser (optionally disconnect from the network to verify offline capability)
-2. Configure watermark text, colour, opacity, font size, and spacing
-3. Upload one or more images
-4. Select export format (PNG / JPG)
-5. Click "Preview" to review results; click any preview card for a compressed full-view (opens instantly)
-6. Click "Download All" to save the watermarked images (progress bar shown)
+2. Configure the watermark text and color
+3. Upload one or more images and optionally click “Use Recommended Settings”
+4. Adjust opacity, font size, and spacing if needed, then select PNG or JPG
+5. Click “Preview” to review results; click any preview card for a compressed full-view
+6. Click “Download All” to save the watermarked images with progress feedback
 
 ---
 
