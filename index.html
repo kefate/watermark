@@ -553,29 +553,45 @@
             object-fit: contain;
             border-radius: 8px;
             box-shadow: var(--shadow-lg);
+            -webkit-touch-callout: default;
+            touch-action: pan-y;
+            will-change: transform, opacity;
         }
 
-        .lightbox-close {
+        .lightbox-nav {
             position: absolute;
-            top: calc(1rem + env(safe-area-inset-top));
-            right: calc(1rem + env(safe-area-inset-right));
-            background: rgba(255, 255, 255, .92);
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
             border: none;
-            color: var(--c-text);
-            font-size: 1.5rem;
-            width: 44px;
-            height: 44px;
             border-radius: 50%;
+            background: rgba(255, 255, 255, .92);
+            color: var(--c-text);
+            font-size: 1.75rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             box-shadow: var(--shadow-md);
-            transition: background var(--transition);
+            transition: background var(--transition), opacity var(--transition);
         }
 
-        .lightbox-close:hover {
+        .lightbox-prev {
+            left: calc(1rem + env(safe-area-inset-left));
+        }
+
+        .lightbox-next {
+            right: calc(1rem + env(safe-area-inset-right));
+        }
+
+        .lightbox-nav:hover:not(:disabled) {
             background: #fff;
+        }
+
+        .lightbox-nav:disabled {
+            opacity: .25;
+            cursor: default;
         }
 
         /* ========== Progress Toast ========== */
@@ -679,6 +695,15 @@
 
             .drop-zone {
                 padding: 1.75rem 1rem;
+            }
+
+            .lightbox img {
+                max-width: 88vw;
+                max-height: 84vh;
+            }
+
+            .lightbox-nav {
+                display: none;
             }
         }
 
@@ -808,8 +833,9 @@
 
     <!-- Lightbox Overlay -->
     <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="图片预览">
-        <button class="lightbox-close" id="lbClose" type="button" aria-label="关闭预览">✕</button>
+        <button class="lightbox-nav lightbox-prev" id="lbPrev" type="button" aria-label="上一张">‹</button>
         <img id="lbImg" src="" alt="">
+        <button class="lightbox-nav lightbox-next" id="lbNext" type="button" aria-label="下一张">›</button>
     </div>
 
     <script>
@@ -842,7 +868,8 @@
                 footerText: "🔒 零网络请求 · 完全离线可用 · 隐私至上",
                 deleteImage: "删除图片",
                 previewDialog: "图片预览",
-                closePreview: "关闭预览",
+                previousImage: "上一张",
+                nextImage: "下一张",
                 alertNoImg: "请先上传图片。",
                 alertNoTxt: "请输入水印文字。",
                 downloading: "正在下载",
@@ -871,7 +898,8 @@
                 footerText: "🔒 Zero network requests · Fully offline · Privacy first",
                 deleteImage: "Delete image",
                 previewDialog: "Image preview",
-                closePreview: "Close preview",
+                previousImage: "Previous image",
+                nextImage: "Next image",
                 alertNoImg: "Please upload images first.",
                 alertNoTxt: "Please enter watermark text.",
                 downloading: "Downloading",
@@ -920,13 +948,20 @@
             footerText: $('footerText'),
             lightbox: $('lightbox'),
             lbImg: $('lbImg'),
-            lbClose: $('lbClose'),
+            lbPrev: $('lbPrev'),
+            lbNext: $('lbNext'),
             langBtns: document.querySelectorAll('.lang-toggle button'),
             colorDots: document.querySelectorAll('.color-dot')
         };
 
         let loadedImages = [];   // {file, image, name}
-        let resultEntries = [];  // {name, canvas}
+        let resultEntries = [];  // {name, canvas, previewUrl}
+        let lightboxIndex = -1;
+        let touchStartX = null;
+        let touchStartY = null;
+        let suppressImageClick = false;
+        let lightboxAnimating = false;
+        let lightboxAnimationToken = 0;
 
         /* ======================================= *
          *  Language Switching
@@ -957,7 +992,8 @@
             dom.lblPreview.textContent = t.lblPreview;
             dom.footerText.textContent = t.footerText;
             dom.lightbox.setAttribute('aria-label', t.previewDialog);
-            dom.lbClose.setAttribute('aria-label', t.closePreview);
+            dom.lbPrev.setAttribute('aria-label', t.previousImage);
+            dom.lbNext.setAttribute('aria-label', t.nextImage);
             dom.previewGrid.querySelectorAll('.preview-delete').forEach(button => {
                 button.setAttribute('aria-label', t.deleteImage);
                 button.title = t.deleteImage;
@@ -1187,12 +1223,12 @@
             dom.previewGrid.innerHTML = '';
             resultEntries = [];
 
-            loadedImages.forEach((item) => {
+            loadedImages.forEach((item, index) => {
                 const canvas = stampWatermark(item.image);
                 const thumbUrl = makeThumbnail(canvas, 400);
                 const previewUrl = makeThumbnail(canvas, 1200);
 
-                resultEntries.push({ name: item.name, canvas: canvas });
+                resultEntries.push({ name: item.name, canvas: canvas, previewUrl: previewUrl });
 
                 const card = document.createElement('div');
                 card.className = 'preview-card';
@@ -1207,7 +1243,7 @@
                 });
 
                 // Lightbox: use pre-cached compressed preview for instant display
-                card.addEventListener('click', () => openLightbox(previewUrl));
+                card.addEventListener('click', () => openLightbox(index));
                 dom.previewGrid.appendChild(card);
             });
 
@@ -1250,28 +1286,168 @@
         /* ======================================= *
          *  Lightbox
          * ======================================= */
-        function openLightbox(src) {
-            dom.lbImg.src = src;
+        function showLightboxImage(index) {
+            if (index < 0 || index >= resultEntries.length) return;
+
+            lightboxIndex = index;
+            const entry = resultEntries[index];
+            dom.lbImg.src = entry.previewUrl;
+            dom.lbImg.alt = entry.name;
+            dom.lbPrev.disabled = lightboxIndex <= 0;
+            dom.lbNext.disabled = lightboxIndex >= resultEntries.length - 1;
+        }
+
+        function openLightbox(index) {
+            showLightboxImage(index);
+            resetLightboxPosition();
             dom.lightbox.classList.add('open');
             document.body.classList.add('lightbox-active');
         }
 
+        function resetLightboxPosition() {
+            dom.lbImg.style.transition = 'transform .2s ease, opacity .2s ease';
+            dom.lbImg.style.transform = 'translateX(0)';
+            dom.lbImg.style.opacity = '1';
+        }
+
+        function animateLightboxChange(index, direction) {
+            if (lightboxAnimating || index < 0 || index >= resultEntries.length) {
+                resetLightboxPosition();
+                return;
+            }
+
+            lightboxAnimating = true;
+            const animationToken = ++lightboxAnimationToken;
+            dom.lbImg.style.transition = 'transform .18s ease, opacity .18s ease';
+            dom.lbImg.style.transform = 'translateX(' + (-direction * 100) + 'vw)';
+            dom.lbImg.style.opacity = '0';
+
+            setTimeout(() => {
+                if (animationToken !== lightboxAnimationToken) return;
+
+                showLightboxImage(index);
+                dom.lbImg.style.transition = 'none';
+                dom.lbImg.style.transform = 'translateX(' + (direction * 100) + 'vw)';
+                dom.lbImg.style.opacity = '0';
+                void dom.lbImg.offsetWidth;
+
+                requestAnimationFrame(() => {
+                    if (animationToken !== lightboxAnimationToken) return;
+
+                    dom.lbImg.style.transition = 'transform .22s ease, opacity .22s ease';
+                    dom.lbImg.style.transform = 'translateX(0)';
+                    dom.lbImg.style.opacity = '1';
+                    setTimeout(() => {
+                        if (animationToken !== lightboxAnimationToken) return;
+                        lightboxAnimating = false;
+                    }, 220);
+                });
+            }, 180);
+        }
+
         function closeLightbox() {
+            lightboxAnimationToken++;
+            lightboxAnimating = false;
             dom.lightbox.classList.remove('open');
             document.body.classList.remove('lightbox-active');
             dom.lbImg.src = '';
+            dom.lbImg.alt = '';
+            dom.lbImg.style.transition = '';
+            dom.lbImg.style.transform = '';
+            dom.lbImg.style.opacity = '';
+            lightboxIndex = -1;
+            touchStartX = null;
+            touchStartY = null;
+            suppressImageClick = false;
         }
 
-        dom.lbClose.addEventListener('click', closeLightbox);
-        dom.lbImg.addEventListener('click', closeLightbox);
+        dom.lbImg.addEventListener('click', () => {
+            if (suppressImageClick) {
+                suppressImageClick = false;
+                return;
+            }
+            closeLightbox();
+        });
+        dom.lbImg.addEventListener('touchstart', e => {
+            if (lightboxAnimating || e.touches.length !== 1) return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            dom.lbImg.style.transition = 'none';
+        });
+        dom.lbImg.addEventListener('touchmove', e => {
+            if (touchStartX === null || touchStartY === null || e.touches.length !== 1) return;
+
+            const deltaX = e.touches[0].clientX - touchStartX;
+            const deltaY = e.touches[0].clientY - touchStartY;
+            if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
+
+            e.preventDefault();
+            const targetIndex = deltaX < 0 ? lightboxIndex + 1 : lightboxIndex - 1;
+            const canNavigate = targetIndex >= 0 && targetIndex < resultEntries.length;
+            const dragX = canNavigate ? deltaX : deltaX * 0.25;
+            dom.lbImg.style.transform = 'translateX(' + dragX + 'px)';
+            dom.lbImg.style.opacity = String(Math.max(0.7, 1 - Math.abs(dragX) / window.innerWidth * 0.3));
+        }, { passive: false });
+        dom.lbImg.addEventListener('touchend', e => {
+            if (touchStartX === null || touchStartY === null || e.changedTouches.length === 0) return;
+
+            const deltaX = e.changedTouches[0].clientX - touchStartX;
+            const deltaY = e.changedTouches[0].clientY - touchStartY;
+            const targetIndex = deltaX < 0 ? lightboxIndex + 1 : lightboxIndex - 1;
+            const canNavigate = targetIndex >= 0 && targetIndex < resultEntries.length;
+            const horizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY);
+            touchStartX = null;
+            touchStartY = null;
+
+            if (horizontalSwipe && Math.abs(deltaX) > 8) {
+                suppressImageClick = true;
+                setTimeout(() => { suppressImageClick = false; }, 500);
+            }
+
+            if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY) || !canNavigate) {
+                resetLightboxPosition();
+                return;
+            }
+
+            animateLightboxChange(targetIndex, deltaX < 0 ? 1 : -1);
+        });
+        dom.lbImg.addEventListener('touchcancel', () => {
+            touchStartX = null;
+            touchStartY = null;
+            resetLightboxPosition();
+        });
+        dom.lbPrev.addEventListener('click', () => showLightboxImage(lightboxIndex - 1));
+        dom.lbNext.addEventListener('click', () => showLightboxImage(lightboxIndex + 1));
         dom.lightbox.addEventListener('click', e => { if (e.target === dom.lightbox) closeLightbox(); });
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && dom.lightbox.classList.contains('open')) closeLightbox();
+            if (!dom.lightbox.classList.contains('open')) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') showLightboxImage(lightboxIndex - 1);
+            if (e.key === 'ArrowRight') showLightboxImage(lightboxIndex + 1);
         });
 
         /* ======================================= *
          *  Download
          * ======================================= */
+        function isIOSDevice() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent)
+                || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
+
+        async function downloadFiles(files) {
+            for (const file of files) {
+                const blobUrl = URL.createObjectURL(file);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = file.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
         async function downloadAll() {
             if (resultEntries.length === 0) {
                 generatePreviews();
@@ -1295,6 +1471,7 @@
 
             // Disable button during download
             dom.btnDownload.disabled = true;
+            const files = [];
 
             for (let i = 0; i < total; i++) {
                 const entry = resultEntries[i];
@@ -1306,26 +1483,33 @@
                 const blob = await new Promise(resolve =>
                     entry.canvas.toBlob(resolve, fmt, quality)
                 );
-                const blobUrl = URL.createObjectURL(blob);
-
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = base + '-watermarked' + ext;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-
-                // Release blob memory after browser has started the download
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                const fileName = base + '-watermarked' + ext;
+                files.push(new File([blob], fileName, { type: fmt }));
 
                 // Update progress
                 const pct = Math.round(((i + 1) / total) * 100);
                 label.textContent = t.downloading + ' ' + (i + 1) + '/' + total;
                 fill.style.width = pct + '%';
 
-                // Yield to browser between files to keep UI responsive
-                await new Promise(r => setTimeout(r, 100));
             }
+
+            if (isIOSDevice()) {
+                if (typeof navigator.share === 'function'
+                    && typeof navigator.canShare === 'function'
+                    && navigator.canShare({ files })) {
+                    try {
+                        await navigator.share({ files });
+                    } catch (error) {
+                        // Closing the share sheet is the end of the iOS flow.
+                    }
+                }
+
+                dom.btnDownload.disabled = false;
+                toast.remove();
+                return;
+            }
+
+            await downloadFiles(files);
 
             // Show completion then fade out
             label.textContent = t.downloadDone + ' ✓';
