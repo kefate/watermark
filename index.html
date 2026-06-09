@@ -497,24 +497,25 @@
 
         .lightbox-close {
             position: absolute;
-            top: 1rem;
-            right: 1.25rem;
-            background: rgba(255, 255, 255, .15);
+            top: calc(1rem + env(safe-area-inset-top));
+            right: calc(1rem + env(safe-area-inset-right));
+            background: rgba(255, 255, 255, .92);
             border: none;
-            color: #fff;
+            color: var(--c-text);
             font-size: 1.5rem;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: var(--shadow-md);
             transition: background var(--transition);
         }
 
         .lightbox-close:hover {
-            background: rgba(255, 255, 255, .3);
+            background: #fff;
         }
 
         /* ========== Progress Toast ========== */
@@ -734,8 +735,8 @@
     </div>
 
     <!-- Lightbox Overlay -->
-    <div class="lightbox" id="lightbox">
-        <button class="lightbox-close" id="lbClose">✕</button>
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="图片预览">
+        <button class="lightbox-close" id="lbClose" type="button" aria-label="关闭预览">✕</button>
         <img id="lbImg" src="" alt="">
     </div>
 
@@ -766,6 +767,8 @@
                 lblPreview: "预览结果",
                 footerText: "🔒 零网络请求 · 完全离线可用 · 隐私至上",
                 deleteImage: "删除图片",
+                previewDialog: "图片预览",
+                closePreview: "关闭预览",
                 alertNoImg: "请先上传图片。",
                 alertNoTxt: "请输入水印文字。",
                 downloading: "正在下载",
@@ -791,6 +794,8 @@
                 lblPreview: "Preview Results",
                 footerText: "🔒 Zero network requests · Fully offline · Privacy first",
                 deleteImage: "Delete image",
+                previewDialog: "Image preview",
+                closePreview: "Close preview",
                 alertNoImg: "Please upload images first.",
                 alertNoTxt: "Please enter watermark text.",
                 downloading: "Downloading",
@@ -871,6 +876,8 @@
             dom.btnDownload.textContent = t.btnDownload;
             dom.lblPreview.textContent = t.lblPreview;
             dom.footerText.textContent = t.footerText;
+            dom.lightbox.setAttribute('aria-label', t.previewDialog);
+            dom.lbClose.setAttribute('aria-label', t.closePreview);
             dom.previewGrid.querySelectorAll('.preview-delete').forEach(button => {
                 button.setAttribute('aria-label', t.deleteImage);
                 button.title = t.deleteImage;
@@ -1106,7 +1113,11 @@
         }
 
         dom.lbClose.addEventListener('click', closeLightbox);
+        dom.lbImg.addEventListener('click', closeLightbox);
         dom.lightbox.addEventListener('click', e => { if (e.target === dom.lightbox) closeLightbox(); });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && dom.lightbox.classList.contains('open')) closeLightbox();
+        });
 
         /* ======================================= *
          *  Download
