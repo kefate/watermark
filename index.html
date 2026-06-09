@@ -400,6 +400,7 @@
         }
 
         .preview-card {
+            position: relative;
             border: 1px solid var(--c-border);
             border-radius: var(--radius);
             overflow: hidden;
@@ -411,6 +412,33 @@
         .preview-card:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
+        }
+
+        .preview-delete {
+            position: absolute;
+            top: .45rem;
+            right: .45rem;
+            z-index: 1;
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, .72);
+            color: #fff;
+            font-size: 1rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: .85;
+            transition: background var(--transition), opacity var(--transition);
+        }
+
+        .preview-delete:hover,
+        .preview-delete:focus-visible {
+            background: #dc2626;
+            opacity: 1;
         }
 
         .preview-thumb {
@@ -737,6 +765,7 @@
                 btnDownload: "下载全部",
                 lblPreview: "预览结果",
                 footerText: "🔒 零网络请求 · 完全离线可用 · 隐私至上",
+                deleteImage: "删除图片",
                 alertNoImg: "请先上传图片。",
                 alertNoTxt: "请输入水印文字。",
                 downloading: "正在下载",
@@ -761,6 +790,7 @@
                 btnDownload: "Download All",
                 lblPreview: "Preview Results",
                 footerText: "🔒 Zero network requests · Fully offline · Privacy first",
+                deleteImage: "Delete image",
                 alertNoImg: "Please upload images first.",
                 alertNoTxt: "Please enter watermark text.",
                 downloading: "Downloading",
@@ -841,6 +871,10 @@
             dom.btnDownload.textContent = t.btnDownload;
             dom.lblPreview.textContent = t.lblPreview;
             dom.footerText.textContent = t.footerText;
+            dom.previewGrid.querySelectorAll('.preview-delete').forEach(button => {
+                button.setAttribute('aria-label', t.deleteImage);
+                button.title = t.deleteImage;
+            });
 
             // Switch default watermark text when user hasn't customised it
             const otherLang = lang === 'zh' ? 'en' : 'zh';
@@ -1007,8 +1041,14 @@
                 const card = document.createElement('div');
                 card.className = 'preview-card';
                 card.innerHTML =
+                    '<button class="preview-delete" type="button" aria-label="' + t.deleteImage + '" title="' + t.deleteImage + '">×</button>' +
                     '<div class="preview-thumb"><img src="' + thumbUrl + '" alt=""></div>' +
                     '<div class="preview-name">' + escapeHtml(item.name) + '</div>';
+
+                card.querySelector('.preview-delete').addEventListener('click', e => {
+                    e.stopPropagation();
+                    removeImage(item, card);
+                });
 
                 // Lightbox: use pre-cached compressed preview for instant display
                 card.addEventListener('click', () => openLightbox(previewUrl));
@@ -1017,6 +1057,31 @@
 
             dom.previewSection.classList.remove('hidden');
             dom.btnDownload.disabled = false;
+        }
+
+        function removeImage(item, card) {
+            const index = loadedImages.indexOf(item);
+            if (index === -1) return;
+
+            loadedImages.splice(index, 1);
+            resultEntries.splice(index, 1);
+
+            if (loadedImages.length === 0) {
+                resultEntries = [];
+                dom.previewGrid.innerHTML = '';
+                dom.previewSection.classList.add('hidden');
+                dom.btnDownload.disabled = true;
+                closeLightbox();
+                return;
+            }
+
+            if (dom.inputText.value.trim() === '') {
+                card.remove();
+                dom.btnDownload.disabled = resultEntries.length === 0;
+                return;
+            }
+
+            generatePreviews();
         }
 
         function escapeHtml(s) {
